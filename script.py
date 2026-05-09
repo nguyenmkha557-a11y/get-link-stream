@@ -29,7 +29,7 @@ def update_gist(content):
         print(f"❌ Lỗi cập nhật Gist: {response.status_code}")
 
 def get_link():
-    target_url = "https://bunchatv4.net/truc-tiep/sydney-fc-vs-newcastle-jets-1640-09-05-2026/601445242"
+    target_url = "https://bunchatv4.net/truc-tiep/manchester-city-vs-brentford-2330-09-05-2026/601447441"
     
     cmd = [
         'yt-dlp', '-g', 

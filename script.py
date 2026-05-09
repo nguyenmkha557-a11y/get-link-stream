@@ -9,7 +9,7 @@ def get_current_gist_content(gist_id, gist_token):
     if response.status_code == 200:
         files = response.json().get('files', {})
         # Thay 'link_stream.txt' bằng tên file chính xác trong Gist của bạn
-        file_data = files.get('link_stream.txt', {})
+        file_data = files.get('playlist.m3u', {})
         return file_data.get('content', '')
     return ""
 

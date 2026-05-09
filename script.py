@@ -2,16 +2,24 @@ import os
 import subprocess
 import requests
 
+def send_telegram(message):
+    token = os.getenv('TG_TOKEN')
+    chat_id = os.getenv('TG_CHAT_ID')
+    if token and chat_id:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        data = {"chat_id": chat_id, "text": message}
+        try:
+            requests.post(url, data=data)
+            print("✅ Đã nhắn link vào Telegram!")
+        except Exception as e:
+            print(f"❌ Lỗi Telegram: {e}")
+
 def update_gist(new_link):
     gist_id = os.getenv('GIST_ID')
     gist_token = os.getenv('GIST_TOKEN')
-    
     if not gist_id or not gist_token:
-        print("Thiếu GIST_ID hoặc GIST_TOKEN!")
         return
 
-    # Cấu trúc nội dung file M3U của bạn
-    # Mình dùng f-string để chèn link mới vào dòng cuối cùng
     m3u_content = f"""#EXTM3U url-tvg="https://vnepg.site/epg.xml"
 #EXTINF:-1 group-title="THỂ THAO QUỐC TẾ" tvg-id="skyf1" tvg-logo="https://r2.thesportsdb.com/images/media/channel/logo/p5csyn1620551587.png",Sky Sport F1
 http://line.watchtivo-8k.com:80/play/live.php?mac=00:1A:79:3F:0C:96&stream=1149423&extension=ts&play_token=1jkVQWGCqc
@@ -21,45 +29,25 @@ http://line.watchtivo-8k.com:80/play/live.php?mac=00:1A:79:3F:0C:96&stream=11494
 {new_link}"""
 
     url = f"https://api.github.com/gists/{gist_id}"
-    headers = {
-        "Authorization": f"token {gist_token}",
-        "Accept": "application/vnd.github.v3+json"
-    }
+    headers = {"Authorization": f"token {gist_token}"}
+    data = {"files": {"link_stream.txt": {"content": m3u_content}}}
     
-    # "link_stream.txt" là tên file bên trong Gist của bạn, bạn có thể đổi thành "list.m3u"
-    data = {
-        "files": {
-            "playlist.json": {
-                "content": m3u_content
-            }
-        }
-    }
-    
-    response = requests.patch(url, headers=headers, json=data)
-    if response.status_code == 200:
-        print("✅ Đã cập nhật danh sách M3U vào Gist thành công!")
-    else:
-        print(f"❌ Lỗi: {response.status_code} - {response.text}")
+    requests.patch(url, headers=headers, json=data)
+    print("✅ Đã cập nhật Gist!")
 
 def get_link():
-    # Bạn nhớ thay link trận đấu đang diễn ra vào đây để test nhé
+    # Link trận đấu thực tế (nhớ thay link mới nếu link này 404)
     target_url = "https://bunchatv4.net/truc-tiep/manchester-city-vs-brentford-2330-09-05-2026/601447441"
     
-    cmd = [
-        'yt-dlp', '-g', 
-        '--referer', 'https://bunchatv4.net/', 
-        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        target_url
-    ]
-    
+    cmd = ['yt-dlp', '-g', '--referer', 'https://bunchatv4.net/', target_url]
     result = subprocess.run(cmd, capture_output=True, text=True)
     link = result.stdout.strip()
     
     if link and "http" in link:
-        print(f"Tìm thấy link mới: {link}")
         update_gist(link)
+        send_telegram(f"⚽ Link Canal+ Sport mới nhất:\n\n{link}")
     else:
-        print("Không lấy được link stream.")
+        print("Không tìm thấy link.")
 
 if __name__ == "__main__":
     get_link()

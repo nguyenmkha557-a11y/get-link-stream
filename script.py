@@ -39,7 +39,7 @@ def update_gist(new_link, match_name):
         current_content = '#EXTM3U url-tvg="https://vnepg.site/epg.xml"'
 
     # 2. Tạo nội dung mới (Nối thêm vào cuối)
-    new_entry = f'\n#EXTINF:-1 group-title="THỂ THAO QUỐC TẾ" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/1/1a/Canal%2B_Sport_2015.png",Canal+ Sport - {match_name}\n{new_link}'
+    new_entry = f'\n#EXTINF:-1 group-title="THỂ THAO QUỐC TẾ" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/1/1a/Canal%2B_Sport_2015.png",{match_name}\n{new_link}'
     updated_content = current_content.strip() + new_entry
 
     # 3. Ghi đè nội dung ĐÃ NỐI DÀI lên Gist

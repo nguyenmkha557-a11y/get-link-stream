@@ -25,7 +25,7 @@ def update_gist(new_link, match_name):
         current_content = '#EXTM3U url-tvg="https://vnepg.site/epg.xml"'
 
     # 2. Tạo 2 dòng mới cho trận đấu
-    new_entry = f'\n#EXTINF:-1 group-title="THỂ THAO QUỐC TẾ" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/1/1a/Canal%2B_Sport_2015.png",Canal+ Sport - {match_name}\n{new_link}'
+    new_entry = f'\n#EXTINF:-1 group-title="THỂ THAO QUỐC TẾ" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/1/1a/Canal%2B_Sport_2015.png",{match_name}\n{new_link}'
     
     # 3. Cộng dồn nội dung
     updated_content = current_content.strip() + new_entry
@@ -33,7 +33,7 @@ def update_gist(new_link, match_name):
     # 4. Gửi nội dung đã được nối dài lên lại Gist
     url = f"https://api.github.com/gists/{gist_id}"
     headers = {"Authorization": f"token {gist_token}"}
-    data = {"files": {"link_stream.txt": {"content": updated_content}}}
+    data = {"files": {"playlist.json": {"content": updated_content}}}
     
     res = requests.patch(url, headers=headers, json=data)
     if res.status_code == 200:

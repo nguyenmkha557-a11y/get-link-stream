@@ -36,18 +36,29 @@ http://line.watchtivo-8k.com:80/play/live.php?mac=00:1A:79:3F:0C:96&stream=11494
     print("✅ Đã cập nhật Gist!")
 
 def get_link():
-    # Link trận đấu thực tế (nhớ thay link mới nếu link này 404)
-    target_url = "https://bunchatv4.net/truc-tiep/manchester-city-vs-brentford-2330-09-05-2026/601447441"
+    # Thay vì viết cứng link, ta lấy từ ENV mà GitHub truyền vào
+    target_url = os.getenv('MATCH_URL')
     
-    cmd = ['yt-dlp', '-g', '--referer', 'https://bunchatv4.net/', target_url]
+    if not target_url:
+        print("Không có link trận đấu để chạy!")
+        return
+    
+    print(f"Đang xử lý trận: {target_url}")
+    
+    cmd = [
+        'yt-dlp', '-g', 
+        '--referer', 'https://bunchatv4.net/', 
+        target_url
+    ]
+    
     result = subprocess.run(cmd, capture_output=True, text=True)
     link = result.stdout.strip()
     
     if link and "http" in link:
         update_gist(link)
-        send_telegram(f"⚽ Link Canal+ Sport mới nhất:\n\n{link}")
+        send_telegram(f"⚽ Cập nhật thành công!\nLink mới: {link}")
     else:
-        print("Không tìm thấy link.")
+        send_telegram("❌ Lỗi: Không tìm thấy stream cho link bạn gửi.")
 
 if __name__ == "__main__":
     get_link()

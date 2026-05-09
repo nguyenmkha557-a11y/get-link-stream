@@ -1,6 +1,6 @@
 name: Test Get Link
 on:
-  workflow_dispatch: # Dòng này tạo nút bấm "Run workflow" để bạn test thủ công
+  workflow_dispatch: # Dòng này tạo nút bấm "Run workflow" để bạn chạy thủ công
 
 jobs:
   check_link:
@@ -12,10 +12,13 @@ jobs:
       - name: Cai dat Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.10' # Cập nhật lên 3.10 để tránh lỗi cũ
 
       - name: Cai dat thu vien can thiet
         run: pip install requests yt-dlp
 
-      - name: Bat dau chay code Python
+      - name: Bat dau chay code Python va Cap nhat Gist
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          GIST_ID: ${{ secrets.GIST_ID }}
         run: python script.py

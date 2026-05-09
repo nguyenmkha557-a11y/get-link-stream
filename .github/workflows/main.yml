@@ -1,0 +1,21 @@
+name: Test Get Link
+on:
+  workflow_dispatch: # Dòng này tạo nút bấm "Run workflow" để bạn test thủ công
+
+jobs:
+  check_link:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lay code tu Github
+        uses: actions/checkout@v3
+
+      - name: Cai dat Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Cai dat thu vien can thiet
+        run: pip install requests yt-dlp
+
+      - name: Bat dau chay code Python
+        run: python script.py

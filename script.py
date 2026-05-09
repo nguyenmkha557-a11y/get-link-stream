@@ -2,7 +2,7 @@ import subprocess
 
 def test_get_link():
     # Link trận đấu để test
-    target_url = "https://bunchatv4.net/truc-tiep/sydney-fc-vs-newcastle-jets-1640-09-05-2026/601445242"
+    target_url = "https://bunchatv4.net/truc-tiep/manchester-city-vs-brentford-2330-09-05-2026/601447441"
     
     print(f"--- ĐANG TEST LẤY LINK TỪ: {target_url} ---")
     

@@ -3,30 +3,28 @@ on:
   workflow_dispatch:
     inputs:
       match_url:
-        description: 'Dán link trận đấu cần lấy vào đây'
+        description: 'Dán link trận đấu'
         required: true
-        default: 'https://bunchatv4.net/'
+      match_name:
+        description: 'Nhập tên trận đấu (Ví dụ: MU vs Barca)'
+        required: true
+        default: 'Canal+ Sport'
 
 jobs:
   check_link:
     runs-on: ubuntu-latest
     steps:
-      - name: Lay code tu Github
-        uses: actions/checkout@v3
-
-      - name: Cai dat Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-
-      - name: Cai dat thu vien
-        run: pip install requests yt-dlp
-
-      - name: Chay script voi link vua dan
+      - run: pip install requests yt-dlp
+      - name: Run script
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
           GIST_ID: ${{ secrets.GIST_ID }}
           TG_TOKEN: ${{ secrets.TG_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-          MATCH_URL: ${{ github.event.inputs.match_url }} # Day la dong quan trong nhat
+          MATCH_URL: ${{ github.event.inputs.match_url }}
+          MATCH_NAME: ${{ github.event.inputs.match_name }} # Thêm dòng này
         run: python script.py

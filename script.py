@@ -30,7 +30,7 @@ http://line.watchtivo-8k.com:80/play/live.php?mac=00:1A:79:3F:0C:96&stream=11494
 
     url = f"https://api.github.com/gists/{gist_id}"
     headers = {"Authorization": f"token {gist_token}"}
-    data = {"files": {"link_stream.txt": {"content": m3u_content}}}
+    data = {"files": {"playlist.json": {"content": m3u_content}}}
     
     requests.patch(url, headers=headers, json=data)
     print("✅ Đã cập nhật Gist!")

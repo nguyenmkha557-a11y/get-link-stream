@@ -21,4 +21,6 @@ jobs:
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
           GIST_ID: ${{ secrets.GIST_ID }}
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}      # Thêm dòng này
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}  # Thêm dòng này
         run: python script.py

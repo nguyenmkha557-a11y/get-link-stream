@@ -64,42 +64,46 @@ def get_link():
     
     if not target_url: return
 
-    # Cấu hình "vượt rào"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Referer": target_url
     }
-    
-    # Xác định Referer linh hoạt
-    referer = "https://bunchatv4.net/"
-    if "quechoa" in target_url:
-        # Lấy domain chính của quechoa (ví dụ quechoa10.live)
-        from urllib.parse import urlparse
-        domain = urlparse(target_url).netloc
-        referer = f"https://{domain}/"
 
-    # Lệnh yt-dlp nâng cao
+    print(f"Đang tìm link cho: {match_name}")
+    link = None
+
+    # CÁCH 1: Dùng yt-dlp (Ưu tiên)
     cmd = [
-        'yt-dlp', 
-        '-g', 
-        '--referer', referer,
+        'yt-dlp', '-g', 
+        '--referer', target_url,
         '--user-agent', headers["User-Agent"],
-        '--no-check-certificates',
-        '--quiet',
         target_url
     ]
-    
     result = subprocess.run(cmd, capture_output=True, text=True)
     link = result.stdout.strip()
-    
-    # Nếu yt-dlp thất bại, thử tìm link .m3u8 thủ công bằng regex (dự phòng)
+
+    # CÁCH 2: Nếu yt-dlp thất bại, quét mã nguồn tìm link .m3u8 trực tiếp
     if not link or "http" not in link:
-        print("Thử phương pháp dự phòng...")
-        # (Phần này có thể thêm sau nếu trang web quá khó)
-    
+        print("yt-dlp thất bại, đang quét mã nguồn...")
+        try:
+            response = requests.get(target_url, headers=headers, timeout=15)
+            # Tìm các chuỗi có định dạng http...m3u8
+            m3u8_links = re.findall(r'(https?://[^\s\'"]+\.m3u8[^\s\'"]*)', response.text)
+            if m3u8_links:
+                # Lấy link đầu tiên tìm thấy (thường là link chính)
+                link = m3u8_links[0].replace('\\/', '/')
+        except Exception as e:
+            print(f"Lỗi quét nguồn: {e}")
+
+    # KẾT QUẢ
     if link and "http" in link:
-        update_gist(link, match_name)
+        # Loại bỏ các link rác (nếu có)
+        if "apple.com" in link or "schema.org" in link:
+            send_telegram(f"❌ Link tìm thấy không hợp lệ cho: {match_name}")
+        else:
+            update_gist(link, match_name)
     else:
-        send_telegram(f"❌ Không tìm thấy link cho: {match_name}\nTrang này bảo mật cao hơn dự kiến.")
+        send_telegram(f"❌ Bế tắc: Trang {target_url} bảo mật quá cao hoặc trận đấu chưa có luồng phát.")
 
 if __name__ == "__main__":
     get_link()

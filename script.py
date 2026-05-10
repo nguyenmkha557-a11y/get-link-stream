@@ -62,17 +62,25 @@ def get_link():
     target_url = os.getenv('MATCH_URL')
     match_name = os.getenv('MATCH_NAME', 'Trận đấu mới')
     
-    if not target_url:
-        return
+    if not target_url: return
 
-    cmd = ['yt-dlp', '-g', '--referer', 'https://bunchatv4.net/', target_url]
+    # Tự động xác định Referer dựa trên link bạn gửi
+    referer = "https://bunchatv4.net/" # Mặc định
+    if "quechoa" in target_url:
+        referer = "https://quechoa10.live/"
+    elif "xoilac" in target_url:
+        referer = "https://xoilac7.com/"
+
+    # Lệnh lấy link với Referer tương ứng
+    cmd = ['yt-dlp', '-g', '--referer', referer, target_url]
+    
     result = subprocess.run(cmd, capture_output=True, text=True)
     link = result.stdout.strip()
     
     if link and "http" in link:
         update_gist(link, match_name)
     else:
-        send_telegram(f"❌ Không tìm thấy link cho trận: {match_name}")
+        send_telegram(f"❌ Không tìm thấy link cho: {match_name}\n(Có thể trang này cần cập nhật thêm Referer)")
 
 if __name__ == "__main__":
     get_link()

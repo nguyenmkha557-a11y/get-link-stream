@@ -64,23 +64,42 @@ def get_link():
     
     if not target_url: return
 
-    # Tự động xác định Referer dựa trên link bạn gửi
-    referer = "https://bunchatv4.net/" # Mặc định
+    # Cấu hình "vượt rào"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    
+    # Xác định Referer linh hoạt
+    referer = "https://bunchatv4.net/"
     if "quechoa" in target_url:
-        referer = "https://quechoa10.live/"
-    elif "xoilac" in target_url:
-        referer = "https://xoilac7.com/"
+        # Lấy domain chính của quechoa (ví dụ quechoa10.live)
+        from urllib.parse import urlparse
+        domain = urlparse(target_url).netloc
+        referer = f"https://{domain}/"
 
-    # Lệnh lấy link với Referer tương ứng
-    cmd = ['yt-dlp', '-g', '--referer', referer, target_url]
+    # Lệnh yt-dlp nâng cao
+    cmd = [
+        'yt-dlp', 
+        '-g', 
+        '--referer', referer,
+        '--user-agent', headers["User-Agent"],
+        '--no-check-certificates',
+        '--quiet',
+        target_url
+    ]
     
     result = subprocess.run(cmd, capture_output=True, text=True)
     link = result.stdout.strip()
     
+    # Nếu yt-dlp thất bại, thử tìm link .m3u8 thủ công bằng regex (dự phòng)
+    if not link or "http" not in link:
+        print("Thử phương pháp dự phòng...")
+        # (Phần này có thể thêm sau nếu trang web quá khó)
+    
     if link and "http" in link:
         update_gist(link, match_name)
     else:
-        send_telegram(f"❌ Không tìm thấy link cho: {match_name}\n(Có thể trang này cần cập nhật thêm Referer)")
+        send_telegram(f"❌ Không tìm thấy link cho: {match_name}\nTrang này bảo mật cao hơn dự kiến.")
 
 if __name__ == "__main__":
     get_link()

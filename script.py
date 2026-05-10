@@ -61,49 +61,62 @@ def update_gist(new_link, match_name):
 def get_link():
     target_url = os.getenv('MATCH_URL')
     match_name = os.getenv('MATCH_NAME', 'Trận đấu mới')
-    
     if not target_url: return
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Referer": target_url
     }
 
-    print(f"Đang tìm link cho: {match_name}")
-    link = None
+    print(f"🔍 Đang quét sâu: {match_name}")
+    
+    try:
+        # Bước 1: Tải mã nguồn trang chính
+        response = requests.get(target_url, headers=headers, timeout=15)
+        html = response.text
 
-    # CÁCH 1: Dùng yt-dlp (Ưu tiên)
-    cmd = [
-        'yt-dlp', '-g', 
-        '--referer', target_url,
-        '--user-agent', headers["User-Agent"],
-        target_url
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    link = result.stdout.strip()
+        # Bước 2: Tìm link .m3u8 trực tiếp (nếu có)
+        found_links = re.findall(r'(https?://[^\s\'"]+\.m3u8[^\s\'"]*)', html)
+        
+        # Bước 3: Nếu không có m3u8, tìm các link Iframe (thường là các link stream ẩn)
+        if not found_links:
+            print("Không thấy m3u8, đang tìm Iframe ẩn...")
+            # Tìm các link trong thẻ src của iframe hoặc các link chứa chữ 'embed', 'player', 'live'
+            iframes = re.findall(r'src=["\'](https?://[^"\']+)["\']', html)
+            for frame_url in iframes:
+                if "facebook" in frame_url or "google" in frame_url: continue
+                try:
+                    print(f"Đang chui vào iframe: {frame_url}")
+                    f_res = requests.get(frame_url, headers={"User-Agent": headers["User-Agent"], "Referer": target_url}, timeout=10)
+                    found_links += re.findall(r'(https?://[^\s\'"]+\.m3u8[^\s\'"]*)', f_res.text)
+                except:
+                    continue
 
-    # CÁCH 2: Nếu yt-dlp thất bại, quét mã nguồn tìm link .m3u8 trực tiếp
-    if not link or "http" not in link:
-        print("yt-dlp thất bại, đang quét mã nguồn...")
-        try:
-            response = requests.get(target_url, headers=headers, timeout=15)
-            # Tìm các chuỗi có định dạng http...m3u8
-            m3u8_links = re.findall(r'(https?://[^\s\'"]+\.m3u8[^\s\'"]*)', response.text)
-            if m3u8_links:
-                # Lấy link đầu tiên tìm thấy (thường là link chính)
-                link = m3u8_links[0].replace('\\/', '/')
-        except Exception as e:
-            print(f"Lỗi quét nguồn: {e}")
+        # Bước 4: Xử lý kết quả
+        if found_links:
+            # Lấy link đầu tiên không phải link rác
+            final_link = None
+            for l in found_links:
+                clean_link = l.replace('\\/', '/')
+                if "m3u8" in clean_link and "http" in clean_link:
+                    final_link = clean_link
+                    break
+            
+            if final_link:
+                update_gist(final_link, match_name)
+                return
 
-    # KẾT QUẢ
-    if link and "http" in link:
-        # Loại bỏ các link rác (nếu có)
-        if "apple.com" in link or "schema.org" in link:
-            send_telegram(f"❌ Link tìm thấy không hợp lệ cho: {match_name}")
-        else:
-            update_gist(link, match_name)
-    else:
-        send_telegram(f"❌ Bế tắc: Trang {target_url} bảo mật quá cao hoặc trận đấu chưa có luồng phát.")
+        # Bước 5: Nếu tất cả thất bại, dùng yt-dlp làm phương án cuối
+        cmd = ['yt-dlp', '-g', '--referer', target_url, target_url]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if "http" in res.stdout:
+            update_gist(res.stdout.strip(), match_name)
+            return
+
+    except Exception as e:
+        print(f"Lỗi: {e}")
+
+    send_telegram(f"❌ Vẫn không lấy được link cho: {match_name}\nĐại ca thử lấy link Server khác trên web rồi gửi lại xem sao.")
 
 if __name__ == "__main__":
     get_link()

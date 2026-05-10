@@ -14,11 +14,23 @@ jobs:
   check_link:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - run: pip install requests yt-dlp
+
+      - name: Install dependencies
+        run: |
+          pip install requests yt-dlp selenium webdriver-manager
+
+      - name: Setup Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
       - name: Run script
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
@@ -26,5 +38,5 @@ jobs:
           TG_TOKEN: ${{ secrets.TG_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           MATCH_URL: ${{ github.event.inputs.match_url }}
-          MATCH_NAME: ${{ github.event.inputs.match_name }} # Thêm dòng này
+          MATCH_NAME: ${{ github.event.inputs.match_name }}
         run: python script.py

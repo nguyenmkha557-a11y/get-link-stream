@@ -23,8 +23,8 @@ def get_current_gist_content(gist_id, gist_token):
     return ""
 
 def update_gist(new_link, match_name):
-    # DỌN DẸP LINK: Xóa sạch dấu gạch chéo ngược \ và khoảng trắng thừa
-    clean_link = new_link.replace('\\', '').strip()
+    # Dọn dẹp link: xóa dấu \ và các ký tự thừa
+    clean_link = new_link.replace('\\', '').replace('"', '').replace("'", "").strip()
     
     gist_id = os.getenv('GIST_ID')
     gist_token = os.getenv('GIST_TOKEN')
@@ -33,7 +33,8 @@ def update_gist(new_link, match_name):
     if not current_content.strip():
         current_content = '#EXTM3U'
 
-    new_entry = f'\n#EXTINF:-1 group-title="THỂ THAO" tvg-logo="https://e0.365dm.com/24/01/2048x1152/skysports-sky-sports-tennis_6437040.jpg", {match_name}\n{clean_link}'
+    # Tạo dòng mới cho playlist
+    new_entry = f'\n#EXTINF:-1 group-title="LIVE" tvg-logo="https://e0.365dm.com/24/01/2048x1152/skysports-sky-sports-tennis_6437040.jpg", {match_name}\n{clean_link}'
     updated_content = current_content.strip() + new_entry
 
     url = f"https://api.github.com/gists/{gist_id}"
@@ -44,7 +45,7 @@ def update_gist(new_link, match_name):
     data = {"files": {first_file: {"content": updated_content}}}
     res = requests.patch(url, headers=headers, json=data)
     if res.status_code == 200:
-        send_telegram(f"✅ Đã thêm: {match_name}\n🔗 {clean_link}")
+        send_telegram(f"✅ Đã thêm thành công!\n⚽ {match_name}")
     else:
         send_telegram(f"❌ Lỗi Gist: {res.status_code}")
 
@@ -53,36 +54,42 @@ def get_link():
     match_name = os.getenv('MATCH_NAME', 'Trận đấu mới')
     if not target_url: return
 
-    # Nếu người dùng gửi thẳng link .m3u8, lấy luôn không cần bẻ khóa
-    if ".m3u8" in target_url.lower() and "http" in target_url.lower():
+    # Nếu gửi thẳng link .m3u8
+    if ".m3u8" in target_url.lower():
         update_gist(target_url, match_name)
         return
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, nickname Chrome/124.0.0.0 Safari/537.36",
         "Referer": target_url
     }
 
     link = None
-    # Thử yt-dlp trước
+
+    # 1. Thử yt-dlp (Tốt cho Buncha, Hoiquan)
     cmd = ['yt-dlp', '-g', '--referer', target_url, target_url]
     result = subprocess.run(cmd, capture_output=True, text=True)
     link = result.stdout.strip()
 
-    # Nếu yt-dlp không ra, quét thủ công
+    # 2. Nếu thất bại (Thường là Luongson hoặc Quechoa)
     if not link or "http" not in link:
         try:
             response = requests.get(target_url, headers=headers, timeout=15)
-            # Quét tất cả link m3u8
-            found = re.findall(r'(https?://[^\s\'"]+\.m3u8[^\s\'"]*)', response.text)
+            html = response.text
+            
+            # Quét các link m3u8 ẩn trong JS
+            found = re.findall(r'(https?://[^\s\'"]+\.m3u8[^\s\'"]*)', html)
             if found:
-                link = found[0]
+                for l in found:
+                    if "schema.org" not in l and "apple.com" not in l:
+                        link = l
+                        break
         except: pass
 
     if link and "http" in link:
         update_gist(link, match_name)
     else:
-        send_telegram(f"❌ Không tìm thấy link stream cho: {match_name}")
+        send_telegram(f"❌ Bế tắc với trang này rồi: {match_name}")
 
 if __name__ == "__main__":
     get_link()

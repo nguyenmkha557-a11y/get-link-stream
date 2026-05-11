@@ -82,7 +82,8 @@ def get_link():
         return
 
 
-    link = None
+    link =  "https://link-test-m3u8.com/live.m3u8"
+
 
 
     if link:

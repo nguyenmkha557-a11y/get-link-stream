@@ -1,9 +1,8 @@
 import os
 import subprocess
 import requests
-import re
-import time
 import json
+import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -22,9 +21,8 @@ def send_telegram(message):
 def get_current_worker_json():
     cf_worker_name = os.getenv('CF_WORKER_NAME')
     cf_account_id = os.getenv('CF_ACCOUNT_ID')
-    # Lưu ý: Nếu link worker của bạn không theo cấu trúc này, hãy dán thẳng link vào đây
-    url = f"https://{cf_worker_name}.{cf_account_id[:5]}.workers.dev/"
-    
+    # Thử lấy dữ liệu từ link worker
+    url = f"https://{cf_worker_name}.nguyenmanhcuong83ro.workers.dev/"
     try:
         res = requests.get(url, timeout=10)
         if res.status_code == 200:
@@ -50,40 +48,35 @@ def update_cloudflare_worker_json(new_link, match_name):
     }
     
     current_data["items"].append(new_item)
-    json_string = json.dumps(current_data, indent=2, ensure_ascii=False)
+    json_string = json.dumps(current_data, ensure_ascii=False)
     
-    worker_script = f"""
-export default {{
-  async fetch(request, env) {{
-    const data = {json_string};
-    return new Response(JSON.stringify(data), {{
-      headers: {{
-        "Content-Type": "application/json; charset=utf-8",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-        "Access-Control-Allow-Origin": "*"
-      }}
-    }});
-  }}
-}};"""
+    # FIX: Để export default sát lề trái, không dùng thụt lề thụ động của Python
+    worker_script = f'export default {{ async fetch(request, env) {{ const data = {json_string}; return new Response(JSON.stringify(data), {{ headers: {{ "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store, no-cache, must-revalidate", "Access-Control-Allow-Origin": "*" }} }}); }} }};'
 
     url = f"https://api.cloudflare.com/client/v4/accounts/{cf_account_id}/workers/scripts/{cf_worker_name}"
+    
     headers = {
         "Authorization": f"Bearer {cf_api_token}",
         "Content-Type": "application/javascript"
     }
 
+    # Gửi PUT request
     res = requests.put(url, headers=headers, data=worker_script.encode('utf-8'))
+    
     if res.status_code == 200:
-        send_telegram(f"✅ Đã thêm thành công vào Cloudflare!\n⚽ {match_name}")
+        print("✅ Thành công!")
+        send_telegram(f"✅ Cloudflare Updated!\n⚽ {match_name}")
     else:
-        send_telegram(f"❌ Lỗi Cloudflare: {res.status_code}")
+        # In ra nội dung lỗi cụ thể để biết Cloudflare chê chỗ nào
+        error_detail = res.text
+        print(f"❌ Lỗi Cloudflare {res.status_code}: {error_detail}")
+        send_telegram(f"❌ Lỗi Cloudflare {res.status_code}: {error_detail[:100]}")
 
 def get_link():
     target_url = os.getenv('MATCH_URL')
     match_name = os.getenv('MATCH_NAME', 'Trận đấu mới')
     if not target_url: return
 
-    # FIX TẠI ĐÂY: Đổi update_gist thành update_cloudflare_worker_json
     if ".m3u8" in target_url.lower():
         update_cloudflare_worker_json(target_url, match_name)
         return
@@ -98,7 +91,6 @@ def get_link():
     try:
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
         driver.get(target_url)
-        
         for i in range(30):
             logs = driver.get_log('performance')
             for entry in logs:
@@ -106,10 +98,7 @@ def get_link():
                     log = json.loads(entry['message'])['message']
                     if 'params' in log and 'request' in log['params']:
                         u = log['params']['request']['url']
-                        if ".m3u8" in u.lower():
-                            blacklist = ["cloudflarestream.com", "manifest/video.m3u8", "doubleclick"]
-                            if any(word in u.lower() for word in blacklist):
-                                continue
+                        if ".m3u8" in u.lower() and "cloudflarestream" not in u.lower():
                             link = u
                             break
                 except: continue
@@ -119,16 +108,10 @@ def get_link():
     except Exception as e:
         print(f"Lỗi Selenium: {e}")
 
-    if not link:
-        cmd = ['yt-dlp', '-g', '--referer', target_url, target_url]
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        link = res.stdout.strip()
-
-    if link and "http" in link:
-        # FIX TẠI ĐÂY: Đổi update_gist thành update_cloudflare_worker_json
+    if link:
         update_cloudflare_worker_json(link, match_name)
     else:
-        send_telegram(f"❌ Bế tắc với {match_name}.")
+        print("Không tìm thấy link")
 
 if __name__ == "__main__":
     get_link()

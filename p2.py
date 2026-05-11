@@ -142,7 +142,7 @@ def get_link():
         link = res.stdout.strip()
 
     if link and "http" in link:
-        update_gist(link, match_name)
+        update_cloudflare_worker_json(link, match_name)
     else:
         send_telegram(f"❌ Bế tắc với {match_name}. Không tìm thấy luồng live hợp lệ.")
 

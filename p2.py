@@ -1,12 +1,6 @@
 import os
-import subprocess
 import requests
 import json
-import time
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 
 def send_telegram(message):
     token = os.getenv('TG_TOKEN')
@@ -15,16 +9,14 @@ def send_telegram(message):
         url = f"https://api.telegram.org/bot{token}/sendMessage"
         try:
             requests.post(url, data={"chat_id": chat_id, "text": message})
-        except:
-            pass
+        except: pass
 
 def get_current_worker_json():
     cf_worker_name = os.getenv('CF_WORKER_NAME')
-    cf_account_id = os.getenv('CF_ACCOUNT_ID')
-    # Thử lấy dữ liệu từ link worker
+    # Thử lấy link trực tiếp. Nếu lỗi 404 thì trả về playlist rỗng
     url = f"https://{cf_worker_name}.nguyenmanhcuong83ro.workers.dev/"
     try:
-        res = requests.get(url, timeout=10)
+        res = requests.get(url, timeout=5)
         if res.status_code == 200:
             return res.json()
     except:
@@ -32,27 +24,29 @@ def get_current_worker_json():
     return {"name": "Playlist Live", "items": []}
 
 def update_cloudflare_worker_json(new_link, match_name):
-    clean_link = new_link.replace('\\', '').replace('"', '').replace("'", "").strip()
+    # Lấy biến môi trường từ GitHub Actions
+    cf_account_id = os.getenv('CF_ACCOUNT_ID', '').strip()
+    cf_worker_name = os.getenv('CF_WORKER_NAME', '').strip()
+    cf_api_token = os.getenv('CF_API_TOKEN', '').strip()
     
-    cf_account_id = os.getenv('CF_ACCOUNT_ID')
-    cf_worker_name = os.getenv('CF_WORKER_NAME')
-    cf_api_token = os.getenv('CF_API_TOKEN')
-    
+    # Kiểm tra xem có lấy được biến không để tránh link bị trống gây 404
+    if not cf_account_id or not cf_worker_name:
+        print("❌ Lỗi: Thiếu CF_ACCOUNT_ID hoặc CF_WORKER_NAME trong Secrets!")
+        return
+
     current_data = get_current_worker_json()
-    
     new_item = {
         "title": match_name,
         "group": "LIVE",
         "logo": "https://upload.wikimedia.org/wikipedia/commons/1/1a/Canal%2B_Sport_2015.png",
-        "url": clean_link
+        "url": new_link.strip()
     }
-    
     current_data["items"].append(new_item)
-    json_string = json.dumps(current_data, ensure_ascii=False)
     
-    # FIX: Để export default sát lề trái, không dùng thụt lề thụ động của Python
-    worker_script = f'export default {{ async fetch(request, env) {{ const data = {json_string}; return new Response(JSON.stringify(data), {{ headers: {{ "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store, no-cache, must-revalidate", "Access-Control-Allow-Origin": "*" }} }}); }} }};'
+    json_string = json.dumps(current_data, ensure_ascii=False)
+    worker_script = f'export default {{ async fetch(request, env) {{ const data = {json_string}; return new Response(JSON.stringify(data), {{ headers: {{ "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" }} }}); }} }};'
 
+    # URL API chuẩn của Cloudflare
     url = f"https://api.cloudflare.com/client/v4/accounts/{cf_account_id}/workers/scripts/{cf_worker_name}"
     
     headers = {
@@ -60,36 +54,26 @@ def update_cloudflare_worker_json(new_link, match_name):
         "Content-Type": "application/javascript"
     }
 
-    # Gửi PUT request
     res = requests.put(url, headers=headers, data=worker_script.encode('utf-8'))
     
     if res.status_code == 200:
         print("✅ Thành công!")
         send_telegram(f"✅ Cloudflare Updated!\n⚽ {match_name}")
     else:
-        # In ra nội dung lỗi cụ thể để biết Cloudflare chê chỗ nào
-        error_detail = res.text
-        print(f"❌ Lỗi Cloudflare {res.status_code}: {error_detail}")
-        send_telegram(f"❌ Lỗi Cloudflare {res.status_code}: {error_detail[:100]}")
+        print(f"❌ Lỗi {res.status_code}: {res.text}")
+        send_telegram(f"❌ Lỗi Cloudflare {res.status_code}")
 
 def get_link():
     target_url = os.getenv('MATCH_URL')
     match_name = os.getenv('MATCH_NAME', 'Trận đấu mới')
-    if not target_url: return
+    
+    # Giả lập link để test ghi Cloud
+    link = "https://link-test-m3u8.com/live.m3u8"
+    
+    if target_url and ".m3u8" in target_url.lower():
+        link = target_url
 
-    if ".m3u8" in target_url.lower():
-        update_cloudflare_worker_json(target_url, match_name)
-        return
-
-
-    link =  "https://link-test-m3u8.com/live.m3u8"
-
-
-
-    if link:
-        update_cloudflare_worker_json(link, match_name)
-    else:
-        print("Không tìm thấy link")
+    update_cloudflare_worker_json(link, match_name)
 
 if __name__ == "__main__":
     get_link()

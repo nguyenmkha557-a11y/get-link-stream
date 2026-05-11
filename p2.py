@@ -19,40 +19,67 @@ def send_telegram(message):
         except:
             pass
 
-def get_current_gist_content(gist_id, gist_token):
-    url = f"https://api.github.com/gists/{gist_id}"
-    headers = {"Authorization": f"token {gist_token}"}
+def get_current_worker_json():
+    """Lấy dữ liệu JSON hiện tại từ Worker"""
+    cf_worker_name = os.getenv('CF_WORKER_NAME')
+    cf_account_id = os.getenv('CF_ACCOUNT_ID')
+    url = f"https://{cf_worker_name}.{cf_account_id[:5]}.workers.dev/"
+    
     try:
-        res = requests.get(url, headers=headers)
+        res = requests.get(url, timeout=10)
         if res.status_code == 200:
-            files = res.json().get('files', {})
-            first_file = list(files.keys())[0]
-            return files[first_file].get('content', '')
+            return res.json() # Trả về dictionary
     except:
         pass
-    return ""
+    # Nếu chưa có gì, trả về cấu trúc khung chuẩn
+    return {"name": "Playlist Live", "items": []}
 
-def update_gist(new_link, match_name):
-    # Dọn dẹp link sạch sẽ nhất có thể
+def update_cloudflare_worker_json(new_link, match_name):
     clean_link = new_link.replace('\\', '').replace('"', '').replace("'", "").strip()
     
-    gist_id = os.getenv('GIST_ID')
-    gist_token = os.getenv('GIST_TOKEN')
-    current_content = get_current_gist_content(gist_id, gist_token)
+    cf_account_id = os.getenv('CF_ACCOUNT_ID')
+    cf_worker_name = os.getenv('CF_WORKER_NAME')
+    cf_api_token = os.getenv('CF_API_TOKEN')
     
-    if not current_content.strip():
-        current_content = '#EXTM3U'
-
-    new_entry = f'\n#EXTINF:-1 group-title="LIVE" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/1/1a/Canal%2B_Sport_2015.png", {match_name}\n{clean_link}'
-    updated_content = current_content.strip() + new_entry
-
-    url = f"https://api.github.com/gists/{gist_id}"
-    headers = {"Authorization": f"token {gist_token}"}
-    res_get = requests.get(url, headers=headers).json()
-    first_file = list(res_get['files'].keys())[0]
+    # 1. Lấy dữ liệu cũ (dạng Dict) và thêm item mới
+    current_data = get_current_worker_json()
     
-    data = {"files": {first_file: {"content": updated_content}}}
-    res = requests.patch(url, headers=headers, json=data)
+    new_item = {
+        "title": match_name,
+        "group": "LIVE",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/1/1a/Canal%2B_Sport_2015.png",
+        "url": clean_link
+    }
+    
+    # Thêm vào danh sách items
+    current_data["items"].append(new_item)
+    
+    # 2. Tạo mã nguồn Worker trả về JSON
+    # Dùng json.dumps để biến dictionary thành chuỗi JSON chuẩn
+    json_string = json.dumps(current_data, indent=2, ensure_ascii=False)
+    
+    worker_script = f"""
+export default {{
+  async fetch(request, env) {{
+    const data = {json_string};
+    return new Response(JSON.stringify(data), {{
+      headers: {{
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "Access-Control-Allow-Origin": "*"
+      }}
+    }});
+  }}
+}};"""
+
+    # 3. Gửi lên Cloudflare API
+    url = f"https://api.cloudflare.com/client/v4/accounts/{cf_account_id}/workers/scripts/{cf_worker_name}"
+    headers = {
+        "Authorization": f"Bearer {cf_api_token}",
+        "Content-Type": "application/javascript"
+    }
+
+    res = requests.put(url, headers=headers, data=worker_script.encode('utf-8'))
     if res.status_code == 200:
         send_telegram(f"✅ Đã thêm thành công!\n⚽ {match_name}\n🔗 {clean_link}")
     else:

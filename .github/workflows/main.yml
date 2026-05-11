@@ -39,4 +39,4 @@ jobs:
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           MATCH_URL: ${{ github.event.inputs.match_url }}
           MATCH_NAME: ${{ github.event.inputs.match_name }}
-        run: python script.py
+        run: python p2.py

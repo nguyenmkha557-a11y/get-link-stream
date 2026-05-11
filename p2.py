@@ -81,32 +81,9 @@ def get_link():
         update_cloudflare_worker_json(target_url, match_name)
         return
 
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
 
     link = None
-    try:
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-        driver.get(target_url)
-        for i in range(30):
-            logs = driver.get_log('performance')
-            for entry in logs:
-                try:
-                    log = json.loads(entry['message'])['message']
-                    if 'params' in log and 'request' in log['params']:
-                        u = log['params']['request']['url']
-                        if ".m3u8" in u.lower() and "cloudflarestream" not in u.lower():
-                            link = u
-                            break
-                except: continue
-            if link: break
-            time.sleep(1)
-        driver.quit()
-    except Exception as e:
-        print(f"Lỗi Selenium: {e}")
+
 
     if link:
         update_cloudflare_worker_json(link, match_name)

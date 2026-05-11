@@ -42,7 +42,15 @@ def update_cloudflare_worker(new_link, match_name):
 
     # 1. Lấy dữ liệu cũ và nối thêm link mới
     current_content = get_current_worker_content()
-    new_entry = f'\n#EXTINF:-1 group-title="LIVE" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/1/1a/Canal%2B_Sport_2015.png", {match_name}\n{clean_link}'
+    # Định nghĩa các dòng option bổ sung
+    vlc_options = (
+        '#EXTVLCOPT:http-user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36\n'
+        '#EXTVLCOPT:http-referrer=https://bunchatv4.net/\n'
+        '#EXTVLCOPT:http-origin=https://bunchatv4.net'
+    )
+    #new_entry = f'\n#EXTINF:-1 group-title="LIVE" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/1/1a/Canal%2B_Sport_2015.png", {match_name}\n{clean_link}'
+    # Tạo entry mới bao gồm cả thông tin kênh và các tùy chọn header
+    new_entry = f'\n#EXTINF:-1 group-title="LIVE" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/1/1a/Canal%2B_Sport_2015.png", {match_name}\n{vlc_options}\n{clean_link}'
     updated_m3u = current_content + new_entry
 
     # 2. Tạo mã nguồn JS (Định dạng Service Worker để tránh lỗi 'export')
